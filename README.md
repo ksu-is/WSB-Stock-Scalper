@@ -1,1 +1,1 @@
-# WSB-Stock-Scalper
+This program searches certain subreddits of reddit in an effort to gather information about a stocks perception.  The user inputs a keyword associated with a stock or the name of the stock itself, and then the program returns a tally of words or phrases that either have positive or negative connotations. 
