@@ -101,8 +101,11 @@ class SubredditScraper:
 
         #Putting into pandas to export post data to csv
         new_df = pd.DataFrame(sub_dict)
+        # TODO: Process the data and look for sentiment
+        # TODO: Remove items from the dictionary/dataframe that are not matches for the search
         if 'Dataframe' in str(type(df)) and self.mode == 'w+':
             pd.concat([df, new_df], axis=0, sort=0).tto_csv(csv, index=False)
+            # TODO: Change the output to sentiment - number of positive mentions
             ui.updates(f'{len(new_df)} new posts were collected and saved to {csv}')
         elif self.mode == 'w+':
             new_df.to_csv(csv, index=False)
@@ -119,7 +122,7 @@ class UserInterface(Frame):
         #loading everything
         Frame.__init__(self,master)
         self.master = master
-        master.title('Subreddit Scraper')
+        master.title('Subreddit Stock Sentiment Calculator')
         master.configure(background='#121212')
         self.configure(background='#121212')
         self.inputs()
@@ -133,7 +136,7 @@ class UserInterface(Frame):
         img = PhotoImage(file = r"resources\scraperbutton.png")
         img = img.subsample(1,1)
         self.scrape_button = Button(self, text='Initiate Scrape', font=('Montserrat',9), fg='#BB86FC', command=self.scrape, image=img, compound = CENTER, borderwidth=0, highlightthickness=0, padx=0, pady=0)
-        self.scrape_button.grid(row=4, column=2, sticky='S')
+        self.scrape_button.grid(row=5, column=2, sticky='S')
         self.scrape_button.image = img
 
         #Spacing labels
@@ -192,10 +195,23 @@ class UserInterface(Frame):
         self.lim_lbl = Label(self, text='Download Limit (Max 1000): ', font=('Montserrat',10,'bold'), bg='#121212', fg='white')
         self.lim_lbl.grid(row=3,column=1)
 
+        #keyword entry
+        entryback_key = PhotoImage(file = r"resources\scraperentryback.png")
+        entryback_key = entryback_key.subsample(1,1)
+        self.entryback_key = Label(self, image=entryback_key, compound = CENTER, borderwidth=0, highlightthickness=0, padx=0, pady=0)
+        self.entryback_key.grid(row=4, column=2)
+        self.entryback_key.image = entryback_key
+        self.key_entry = Entry(self, width=12, font=('Monsterrat',10,'bold'), borderwidth=0, highlightthickness=0)
+        self.key_entry.grid(row=3, column=2)
+        self.key_lbl = Label(self, text='Keyword to search for: ', font=('Montserrat',10,'bold'), bg='#121212', fg='white')
+        self.key_lbl.grid(row=4,column=1)
+
     #This calls the scraper and checks for existing subreddit and t1hat entries are filled out
     def scrape(self):
         sub_in = self.sub_entry.get()
         sort_in = self.tkvar.get().lower()
+        key_in = self.key_entry.get().lower()
+        print(key_in)
         try:
             limit_in = int(self.lim_entry.get())
         except ValueError:
