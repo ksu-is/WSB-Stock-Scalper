@@ -6,6 +6,7 @@ import pandas as pd
 from time import sleep
 import datetime as dt
 import urllib.request
+import re
 from tkinter import *
 from PIL import Image, ImageTk
 
@@ -15,13 +16,15 @@ reddit = praw.Reddit("credentials")
 """
 This is the Reddit Scraper that scrapes submission text and images
 """
+
 class SubredditScraper:
     
-    def __init__(self, sub, sort, lim, mode):
+    def __init__(self, sub, sort, lim, mode, key):
         self.sub = sub
         self.sort = sort
         self.lim = lim
         self.mode = mode
+        self.key = key
 
         print(f'SubredditScraper instance created with values sub = {sub}, sort = {sort}, lim = {lim}, mode= {mode}')
     
@@ -67,6 +70,18 @@ class SubredditScraper:
             if not os.path.isfile(filename):
                 urllib.request.urlretrieve(link, filename)
 
+    def calculate_ranking(self, post_data):
+        sentiment_counts = 0
+        print(f"Filtered Posts {len(post_data)}")
+        for post_text in post_data['selftext']:
+            matches = re.findall(r'great|awesome|buy|hold|strong|bullish|safe|up', post_text, re.IGNORECASE)
+            sentiment_counts += len(matches)
+            print(f"Matches found {len(matches)}")
+            
+             
+
+        # TODO: Loop through post_data and generate a ranking
+
     #This is the actual scraper
     def get_posts(self):
 
@@ -82,31 +97,47 @@ class SubredditScraper:
 
         ui.updates(f'Collecting information from r/{self.sub}.')
 
+        searched_posts = 0
+        matched_posts = 0
         #Scraping posts and calling image scraper if the post has not already been scraped
         for post in subreddit:
             unique_id = post.id not in tuple(df.id) if csv_loaded else True
-
+            searched_posts += 1
             #Adds scraped data to the dictonary and converts created date into readable format
             if unique_id:
-                sub_dict['selftext'].append(post.selftext)
-                sub_dict['title'].append(post.title)
-                sub_dict['id'].append(post.id)
-                sub_dict['sorted_by'].append(sort)
-                sub_dict['num_comments'].append(post.num_comments)
-                sub_dict['score'].append(post.score)
-                sub_dict['created'].append(dt.datetime.fromtimestamp(post.created))
-                sub_dict['url'].append(post.url)
+                # Remove items from the dictionary/dataframe that are not matches for the search
+                # only include posts that contain the search_key
+                if self.key.lower() in post.selftext.lower() or self.key.lower() in post.title.lower():
+                    matched_posts += 1
+                    sub_dict['selftext'].append(post.selftext)
+                    sub_dict['title'].append(post.title)
+                    sub_dict['id'].append(post.id)
+                    sub_dict['sorted_by'].append(sort)
+                    sub_dict['num_comments'].append(post.num_comments)
+                    sub_dict['score'].append(post.score)
+                    sub_dict['created'].append(dt.datetime.fromtimestamp(post.created))
+                    sub_dict['url'].append(post.url)
             sleep(0.1)
             self.get_image(post.url)
 
+
+        results = self.calculate_ranking(post_data=sub_dict)
+        
         #Putting into pandas to export post data to csv
         new_df = pd.DataFrame(sub_dict)
+
+        # TODO: Process the data and look for sentiment
+        # TODO: Remove items from the dictionary/dataframe that are not matches for the search
         if 'Dataframe' in str(type(df)) and self.mode == 'w+':
             pd.concat([df, new_df], axis=0, sort=0).tto_csv(csv, index=False)
+            # TODO: Change the output to sentiment - number of positive mentions
+
             ui.updates(f'{len(new_df)} new posts were collected and saved to {csv}')
         elif self.mode == 'w+':
             new_df.to_csv(csv, index=False)
-            ui.updates(f'{len(new_df)} posts collected and saved to {csv}')
+
+            ui.updates(f'{matched_posts/searched_posts*100} percent of posts contain the keyword and {matches} matches were found.')
+            
         else:
             print(f'{len(new_df)} posts were collected but they were not added to {csv} because mode was set to "{self.mode}')
 
@@ -119,7 +150,7 @@ class UserInterface(Frame):
         #loading everything
         Frame.__init__(self,master)
         self.master = master
-        master.title('Subreddit Scraper')
+        master.title('Subreddit Stock Sentiment Calculator')
         master.configure(background='#121212')
         self.configure(background='#121212')
         self.inputs()
@@ -133,7 +164,7 @@ class UserInterface(Frame):
         img = PhotoImage(file = r"resources\scraperbutton.png")
         img = img.subsample(1,1)
         self.scrape_button = Button(self, text='Initiate Scrape', font=('Montserrat',9), fg='#BB86FC', command=self.scrape, image=img, compound = CENTER, borderwidth=0, highlightthickness=0, padx=0, pady=0)
-        self.scrape_button.grid(row=4, column=2, sticky='S')
+        self.scrape_button.grid(row=5, column=2, sticky='S')
         self.scrape_button.image = img
 
         #Spacing labels
@@ -192,10 +223,23 @@ class UserInterface(Frame):
         self.lim_lbl = Label(self, text='Download Limit (Max 1000): ', font=('Montserrat',10,'bold'), bg='#121212', fg='white')
         self.lim_lbl.grid(row=3,column=1)
 
-    #This calls the scraper and checks for existing subreddit and t1hat entries are filled out
+        #keyword entry
+        entryback_key = PhotoImage(file = r"resources\scraperentryback.png")
+        entryback_key = entryback_key.subsample(1,1)
+        self.entryback_key = Label(self, image=entryback_key, compound = CENTER, borderwidth=0, highlightthickness=0, padx=0, pady=0)
+        self.entryback_key.grid(row=4, column=2)
+        self.entryback_key.image = entryback_key
+        self.key_entry = Entry(self, width=12, font=('Monsterrat',10,'bold'), borderwidth=0, highlightthickness=0)
+        self.key_entry.grid(row=4, column=2)
+        self.key_lbl = Label(self, text='Keyword to search for: ', font=('Montserrat',10,'bold'), bg='#121212', fg='white')
+        self.key_lbl.grid(row=4,column=1)
+
+    #This calls the scraper and checks for existing subreddit and that entries are filled out
     def scrape(self):
         sub_in = self.sub_entry.get()
         sort_in = self.tkvar.get().lower()
+        key_in = self.key_entry.get().lower()
+        print(key_in)
         try:
             limit_in = int(self.lim_entry.get())
         except ValueError:
@@ -210,7 +254,7 @@ class UserInterface(Frame):
             if limit_in <= 1000:
                 try:
                     #Scraper is called
-                    SubredditScraper(sub=sub_in,lim=limit_in,mode='w+',sort=sort_in).get_posts()
+                    SubredditScraper(sub=sub_in,lim=limit_in,mode='w+',sort=sort_in,key=key_in).get_posts()
                 except prawcore.exceptions.Redirect:
                     ui.updates(f'Please check that {sub_in} is an existing subreddit.')
             else:
