@@ -71,9 +71,11 @@ class SubredditScraper:
                 urllib.request.urlretrieve(link, filename)
 
     def calculate_ranking(self, post_data):
+        sentiment_counts = 0
         print(f"Filtered Posts {len(post_data)}")
         for post_text in post_data['selftext']:
-            matches = re.findall(r'great|awesome|buy|hold|strong|bullish|safe', post_text, re.IGNORECASE)
+            matches = re.findall(r'great|awesome|buy|hold|strong|bullish|safe|up', post_text, re.IGNORECASE)
+            sentiment_counts += len(matches)
             print(f"Matches found {len(matches)}")
             
              
@@ -120,7 +122,7 @@ class SubredditScraper:
 
 
         results = self.calculate_ranking(post_data=sub_dict)
-
+        
         #Putting into pandas to export post data to csv
         new_df = pd.DataFrame(sub_dict)
 
@@ -129,10 +131,13 @@ class SubredditScraper:
         if 'Dataframe' in str(type(df)) and self.mode == 'w+':
             pd.concat([df, new_df], axis=0, sort=0).tto_csv(csv, index=False)
             # TODO: Change the output to sentiment - number of positive mentions
+
             ui.updates(f'{len(new_df)} new posts were collected and saved to {csv}')
         elif self.mode == 'w+':
             new_df.to_csv(csv, index=False)
-            ui.updates(f'{len(new_df)} posts collected and saved to {csv}')
+
+            ui.updates(f'{matched_posts/searched_posts*100} percent of posts contain the keyword and {matches} matches were found.')
+            
         else:
             print(f'{len(new_df)} posts were collected but they were not added to {csv} because mode was set to "{self.mode}')
 

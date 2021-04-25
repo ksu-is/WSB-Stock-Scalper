@@ -5,9 +5,10 @@
  - [x] resolve import errors from refrence code
  - [x] set perameters for the amount of information processed from each search
  - [x] add keyword box to UI
- - [x] add ability to search for keywords 
- - [ ] create a scoring system based on the amount of positive mentions of a company
+ - [x] add ability to search for keywords
+ - [x] perform analysis on entries that match search criteria
  - [x] filter extraneous scalped data 
+ - [ ] create a scoring system based on the amount of positive mentions of a company
  - [ ] remove csv file created from running the code previously
- - [ ] perform analysis on entries that match search criteria
+
 
